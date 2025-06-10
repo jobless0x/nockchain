@@ -12,6 +12,7 @@ use crate::jets::mega_jets::*;
 use crate::jets::memory_table_jets::*;
 use crate::jets::tip5_jets::*;
 use crate::jets::verifier_jets::*;
+use crate::jets::fock_core_jets::build_tree_data_jet;
 
 pub fn produce_prover_hot_state() -> Vec<HotEntry> {
     let mut jets: Vec<HotEntry> = Vec::new();
@@ -23,6 +24,7 @@ pub fn produce_prover_hot_state() -> Vec<HotEntry> {
     jets.extend(XTRA_JETS);
     jets.extend(EXTENSION_FIELD_JETS);
     jets.extend(ZKVM_TABLE_JETS);
+    jets.push(BUILD_TREE_DATA_JET);
 
     jets
 }
@@ -613,3 +615,20 @@ pub const CURVE_JETS: &[HotEntry] = &[(
     1,
     ch_scal_jet,
 )];
+
+pub const BUILD_TREE_DATA_JET: HotEntry = (
+    &[
+        K_138,
+        Left(b"one"),
+        Left(b"two"),
+        Left(b"tri"),
+        Left(b"qua"),
+        Left(b"pen"),
+        Left(b"zeke"),
+        Left(b"table-lib"),
+        Left(b"fock-core"),
+        Left(b"build-tree-data"),
+    ],
+    1,
+    build_tree_data_jet,
+);
