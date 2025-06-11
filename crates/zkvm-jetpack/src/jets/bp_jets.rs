@@ -246,3 +246,44 @@ pub fn init_bpoly_jet(context: &mut Context, subject: Noun) -> Result {
 
     Ok(res_cell)
 }
+
+pub fn transpose_bpolys_jet(context: &mut Context, subject: Noun) -> Result {
+    let input_list = slot(subject, 6)?;
+    let mut rows: Vec<&[Belt]> = vec![];
+
+    let mut list = input_list;
+    while let Ok(cell) = list.as_cell() {
+        let bpoly = match BPolySlice::try_from(cell.head()) {
+            Ok(p) => p,
+            Err(_) => return jet_err(),
+        };
+        rows.push(bpoly.0);
+        list = cell.tail();
+    }
+
+    if rows.is_empty() {
+        return Ok(D(0));
+    }
+
+    let row_len = rows[0].len();
+    for r in &rows {
+        if r.len() != row_len {
+            return jet_err();
+        }
+    }
+
+    let mut res_cell = D(0);
+
+    for i in (0..row_len).rev() {
+        let (res_atom, res_poly): (IndirectAtom, &mut [Belt]) =
+            new_handle_mut_slice(&mut context.stack, Some(rows.len()));
+        for (j, row) in rows.iter().enumerate() {
+            res_poly[j] = row[i];
+        }
+
+        let poly_noun = finalize_poly(&mut context.stack, Some(rows.len()), res_atom);
+        res_cell = T(&mut context.stack, &[poly_noun, res_cell]);
+    }
+
+    Ok(res_cell)
+}
