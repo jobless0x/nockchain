@@ -13,3 +13,4 @@ pub mod utils;
 pub mod verifier_jets;
 pub mod fock_core_jets;
 pub mod commitment_jets;
+pub mod compute_poly_jets;

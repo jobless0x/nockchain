@@ -15,6 +15,7 @@ use crate::jets::tip5_jets::*;
 use crate::jets::verifier_jets::*;
 use crate::jets::fock_core_jets::build_tree_data_jet;
 use crate::jets::commitment_jets::compute_codeword_commitments_jet;
+use crate::jets::compute_poly_jets::compute_composition_poly_jet;
 
 pub fn produce_prover_hot_state() -> Vec<HotEntry> {
     let mut jets: Vec<HotEntry> = Vec::new();
@@ -91,6 +92,16 @@ pub const ZKVM_TABLE_JETS: &[HotEntry] = &[
         ],
         1,
         compute_mega_extend_jet,
+    ),
+    (
+        &[
+            K_138,
+            Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"),
+            Left(b"pen"), Left(b"stark-core"), Left(b"jetted-funcs"),
+            Left(b"compute-composition-poly"),
+        ],
+        1,
+        compute_composition_poly_jet,
     ),
     (
         &[

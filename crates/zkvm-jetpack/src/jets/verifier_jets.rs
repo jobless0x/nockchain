@@ -184,7 +184,7 @@ fn process_belt(
 // =/  aop-door   ?:(=(field %base) bop fop)
 // =/  init-zero=@ux  (lift-op 0)
 // =/  init-one=@ux  (lift-op 1)
-trait Fops:
+pub trait Fops:
     Element + Copy + core::ops::Add<Output = Self> + core::ops::Mul<Output = Self> + PartialEq + Eq
 {
     fn to_noun(self, stack: &mut NockStack) -> Noun;
@@ -263,7 +263,7 @@ pub fn mpeval_jet(context: &mut Context, subject: Noun) -> Result<Noun, JetErr> 
     Ok(ret)
 }
 
-fn mpeval<F: Fops>(
+pub fn mpeval<F: Fops>(
     stack: &mut NockStack,
     mp: Noun,
     args: Noun,
