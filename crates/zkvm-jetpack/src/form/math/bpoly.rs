@@ -1,4 +1,7 @@
 use std::vec;
+use nockvm::interpreter::Context;
+use nockvm::noun::{Atom, D, Noun, T};
+use nockvm::jets::JetErr;
 
 use crate::form::math::{bpow, FieldError};
 use crate::form::poly::*;
@@ -424,6 +427,41 @@ pub fn bpegcd(a: &[Belt], b: &[Belt], d: &mut [Belt], u: &mut [Belt], v: &mut [B
 
     u[0..(m2_u_len as usize)].copy_from_slice(&m2_u[0..(m2_u_len as usize)]);
     v[0..(m2_v_len as usize)].copy_from_slice(&m2_v[0..(m2_v_len as usize)]);
+}
+
+#[inline(always)]
+pub fn transpose_bpolys(input: &[Vec<Belt>]) -> Vec<Vec<Belt>> {
+    if input.is_empty() {
+        return vec![];
+    }
+
+    let row_len = input.len();
+    let col_len = input[0].len();
+
+    let mut output = vec![vec![Belt(0); row_len]; col_len];
+
+    for i in 0..row_len {
+        for j in 0..col_len {
+            output[j][i] = input[i][j];
+        }
+    }
+
+    output
+}
+
+pub fn bp_build_merk_heap(rows: &[Vec<Belt>], context: &mut Context) -> Result<Noun, JetErr> {
+    let mut outer = D(0);
+
+    for row in rows.iter().rev() {
+        let mut inner = D(0);
+        for b in row.iter().rev() {
+            let atom = Atom::new(&mut context.stack, b.0).as_noun();
+            inner = T(&mut context.stack, &[atom, inner]);
+        }
+        outer = T(&mut context.stack, &[inner, outer]);
+    }
+
+    Ok(outer)
 }
 
 #[inline(always)]
