@@ -10,6 +10,13 @@ use crate::hand::structs::HoonList;
 use crate::jets::utils::jet_err;
 use crate::noun::noun_ext::{AtomExt, NounExt};
 
+fn return_zero(context: &mut Context) -> Result {
+    let (res_atom, res_poly): (IndirectAtom, &mut [Belt]) =
+        new_handle_mut_slice(&mut context.stack, Some(1));
+    res_poly[0] = Belt(0);
+    Ok(finalize_poly(&mut context.stack, Some(1), res_atom))
+}
+
 pub fn bpoly_to_list_jet(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     bpoly_to_list(context, sam)
@@ -20,9 +27,7 @@ pub fn bpoly_to_list(context: &mut Context, sam: Noun) -> Result {
         return jet_err();
     };
 
-    //  empty list is a null atom
     let mut res_list = D(0);
-
     let len = sam_bpoly.len();
 
     if len == 0 {
@@ -46,30 +51,35 @@ pub fn bpadd_jet(context: &mut Context, subject: Noun) -> Result {
         return jet_err();
     };
 
-    let res_len = std::cmp::max(bp_poly.len(), bq_poly.len());
-    let (res, res_poly): (IndirectAtom, &mut [Belt]) =
-        new_handle_mut_slice(&mut context.stack, Some(res_len as usize));
+    let bp_len = bp_poly.len();
+    let bq_len = bq_poly.len();
+
+    if bp_len == 0 || bq_len == 0 {
+        return return_zero(context);
+    }
+
+    let res_len = std::cmp::max(bp_len, bq_len);
+    let (res_atom, res_poly): (IndirectAtom, &mut [Belt]) =
+        new_handle_mut_slice(&mut context.stack, Some(res_len));
+
     bpadd(bp_poly.0, bq_poly.0, res_poly);
-
-    let res_cell = finalize_poly(&mut context.stack, Some(res_poly.len()), res);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_len), res_atom))
 }
 
 pub fn bpneg_jet(context: &mut Context, subject: Noun) -> Result {
     let bp = slot(subject, 6)?;
-
     let Ok(bp_poly) = BPolySlice::try_from(bp) else {
         return jet_err();
     };
 
+    if bp_poly.len() == 0 || bp_poly.is_zero() {
+        return return_zero(context);
+    }
+
     let (res, res_poly): (IndirectAtom, &mut [Belt]) =
         new_handle_mut_slice(&mut context.stack, Some(bp_poly.len()));
     bpneg(bp_poly.0, res_poly);
-
-    let res_cell = finalize_poly(&mut context.stack, Some(res_poly.len()), res);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_poly.len()), res))
 }
 
 pub fn bpsub_jet(context: &mut Context, subject: Noun) -> Result {
@@ -81,32 +91,43 @@ pub fn bpsub_jet(context: &mut Context, subject: Noun) -> Result {
         return jet_err();
     };
 
-    let res_len = std::cmp::max(p_poly.len(), q_poly.len());
-    let (res, res_poly): (IndirectAtom, &mut [Belt]) =
-        new_handle_mut_slice(&mut context.stack, Some(res_len as usize));
+    let p_len = p_poly.len();
+    let q_len = q_poly.len();
+
+    if q_len == 0 {
+        return Ok(p);
+    } else if p_len == 0 {
+        let (res_atom, res_poly): (IndirectAtom, &mut [Belt]) =
+            new_handle_mut_slice(&mut context.stack, Some(q_len));
+        bpneg(q_poly.0, res_poly);
+        return Ok(finalize_poly(&mut context.stack, Some(q_len), res_atom));
+    }
+
+    let res_len = std::cmp::max(p_len, q_len);
+    let (res_atom, res_poly): (IndirectAtom, &mut [Belt]) =
+        new_handle_mut_slice(&mut context.stack, Some(res_len));
     bpsub(p_poly.0, q_poly.0, res_poly);
-
-    let res_cell = finalize_poly(&mut context.stack, Some(res_poly.len()), res);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_len), res_atom))
 }
 
 pub fn bpscal_jet(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let c = slot(sam, 2)?;
     let bp = slot(sam, 3)?;
+
     let (Ok(c_atom), Ok(bp_poly)) = (c.as_atom(), BPolySlice::try_from(bp)) else {
         return jet_err();
     };
-    let c_64 = c_atom.as_u64()?;
 
-    let (res, res_poly): (IndirectAtom, &mut [Belt]) =
+    let c_64 = c_atom.as_u64()?;
+    if c_64 == 0 || bp_poly.len() == 0 || bp_poly.is_zero() {
+        return return_zero(context);
+    }
+
+    let (res_atom, res_poly): (IndirectAtom, &mut [Belt]) =
         new_handle_mut_slice(&mut context.stack, Some(bp_poly.len()));
     bpscal(Belt(c_64), bp_poly.0, res_poly);
-
-    let res_cell = finalize_poly(&mut context.stack, Some(res_poly.len()), res);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_poly.len()), res_atom))
 }
 
 pub fn bpmul_jet(context: &mut Context, subject: Noun) -> Result {
@@ -118,19 +139,17 @@ pub fn bpmul_jet(context: &mut Context, subject: Noun) -> Result {
         return jet_err();
     };
 
-    let res_len = if bp_poly.is_zero() | bq_poly.is_zero() {
-        1
-    } else {
-        bp_poly.len() + bq_poly.len() - 1
-    };
+    let bp_len = bp_poly.len();
+    let bq_len = bq_poly.len();
+    if bp_len == 0 || bq_len == 0 || bp_poly.is_zero() || bq_poly.is_zero() {
+        return return_zero(context);
+    }
 
+    let res_len = bp_len + bq_len - 1;
     let (res_atom, res_poly): (IndirectAtom, &mut [Belt]) =
         new_handle_mut_slice(&mut context.stack, Some(res_len));
-
     bpmul(bp_poly.0, bq_poly.0, res_poly);
-    let res_cell = finalize_poly(&mut context.stack, Some(res_len), res_atom);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_len), res_atom))
 }
 
 pub fn bp_hadamard_jet(context: &mut Context, subject: Noun) -> Result {
@@ -141,14 +160,28 @@ pub fn bp_hadamard_jet(context: &mut Context, subject: Noun) -> Result {
     let (Ok(bp_poly), Ok(bq_poly)) = (BPolySlice::try_from(bp), BPolySlice::try_from(bq)) else {
         return jet_err();
     };
-    assert_eq!(bp_poly.len(), bq_poly.len());
-    let res_len = bp_poly.len();
+
+    let bp_len = bp_poly.len();
+    let bq_len = bq_poly.len();
+
+    if bp_len == 0 || bq_len == 0 {
+        return return_zero(context);
+    }
+
+    if bp_len != bq_len {
+        return jet_err();
+    }
+
+    if bp_poly.is_zero() || bq_poly.is_zero() {
+        return return_zero(context);
+    }
+
     let (res, res_poly): (IndirectAtom, &mut [Belt]) =
-        new_handle_mut_slice(&mut context.stack, Some(res_len));
+        new_handle_mut_slice(&mut context.stack, Some(bp_len));
+
     bp_hadamard(bp_poly.0, bq_poly.0, res_poly);
 
-    let res_cell = finalize_poly(&mut context.stack, Some(res_poly.len()), res);
-
+    let res_cell = finalize_poly(&mut context.stack, Some(bp_len), res);
     Ok(res_cell)
 }
 
@@ -162,14 +195,12 @@ pub fn bp_ntt_jet(context: &mut Context, subject: Noun) -> Result {
     };
     let root_64 = root_atom.as_u64()?;
     let returned_bpoly = bp_ntt(bp_poly.0, &Belt(root_64));
-    // TODO: preallocate and pass res buffer into bp_ntt?
+
     let (res_atom, res_poly): (IndirectAtom, &mut [Belt]) =
-        new_handle_mut_slice(&mut context.stack, Some(returned_bpoly.len() as usize));
-    res_poly.copy_from_slice(&returned_bpoly[..]);
+        new_handle_mut_slice(&mut context.stack, Some(returned_bpoly.len()));
+    res_poly.copy_from_slice(&returned_bpoly);
 
-    let res_cell: Noun = finalize_poly(&mut context.stack, Some(res_poly.len()), res_atom);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_poly.len()), res_atom))
 }
 
 pub fn bp_fft_jet(context: &mut Context, subject: Noun) -> Result {
@@ -180,13 +211,11 @@ pub fn bp_fft_jet(context: &mut Context, subject: Noun) -> Result {
     };
     let returned_bpoly = bp_fft(p_poly.0)?;
     let (res_atom, res_poly): (IndirectAtom, &mut [Belt]) =
-        new_handle_mut_slice(&mut context.stack, Some(returned_bpoly.len() as usize));
+        new_handle_mut_slice(&mut context.stack, Some(returned_bpoly.len()));
 
     res_poly.copy_from_slice(&returned_bpoly);
 
-    let res_cell: Noun = finalize_poly(&mut context.stack, Some(res_poly.len()), res_atom);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_poly.len()), res_atom))
 }
 
 pub fn bp_shift_jet(context: &mut Context, subject: Noun) -> Result {
@@ -201,9 +230,7 @@ pub fn bp_shift_jet(context: &mut Context, subject: Noun) -> Result {
         new_handle_mut_slice(&mut context.stack, Some(bp_poly.len()));
     bp_shift(bp_poly.0, &c_belt, res_poly);
 
-    let res_cell = finalize_poly(&mut context.stack, Some(res_poly.len()), res_atom);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_poly.len()), res_atom))
 }
 
 pub fn bp_coseword_jet(context: &mut Context, subject: Noun) -> Result {
@@ -221,11 +248,9 @@ pub fn bp_coseword_jet(context: &mut Context, subject: Noun) -> Result {
     let root = Belt(order_32 as u64).ordered_root()?;
     let returned_bpoly = bp_coseword(p_poly.0, &offset_belt, order_32, &root);
     let (res, res_poly): (IndirectAtom, &mut [Belt]) =
-        new_handle_mut_slice(&mut context.stack, Some(returned_bpoly.len() as usize));
+        new_handle_mut_slice(&mut context.stack, Some(returned_bpoly.len()));
     res_poly.copy_from_slice(&returned_bpoly);
-    let res_cell = finalize_poly(&mut context.stack, Some(res_poly.len()), res);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_poly.len()), res))
 }
 
 pub fn init_bpoly_jet(context: &mut Context, subject: Noun) -> Result {
@@ -234,7 +259,7 @@ pub fn init_bpoly_jet(context: &mut Context, subject: Noun) -> Result {
     let list_belt = HoonList::try_from(poly)?.into_iter();
     let count = list_belt.count();
     let (res, res_poly): (IndirectAtom, &mut [Belt]) =
-        new_handle_mut_slice(&mut context.stack, Some(count as usize));
+        new_handle_mut_slice(&mut context.stack, Some(count));
     for (i, belt_noun) in list_belt.enumerate() {
         let Ok(belt) = belt_noun.as_belt() else {
             return jet_err();
@@ -242,9 +267,7 @@ pub fn init_bpoly_jet(context: &mut Context, subject: Noun) -> Result {
         res_poly[i] = belt;
     }
 
-    let res_cell = finalize_poly(&mut context.stack, Some(res_poly.len()), res);
-
-    Ok(res_cell)
+    Ok(finalize_poly(&mut context.stack, Some(res_poly.len()), res))
 }
 
 pub fn transpose_bpolys_jet(context: &mut Context, subject: Noun) -> Result {
