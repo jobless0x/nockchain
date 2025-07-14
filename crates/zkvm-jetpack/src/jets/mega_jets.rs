@@ -4,6 +4,7 @@ use nockvm::jets::Result;
 use nockvm::noun::{IndirectAtom, Noun, D};
 
 use crate::form::math::base::bpow;
+use crate::form::math::gpu_poly::hadamard_batch;
 use crate::form::math::bpoly::*;
 use crate::form::mega::{brek, MegaTyp};
 use crate::form::poly::*;
@@ -97,10 +98,13 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
 
                     for _ in 0..exp {
                         let current_inner_acc_slice = &inner_acc_vec.0;
-                        bp_hadamard(current_inner_acc_slice, var_slice, res_poly_slice);
-                        inner_acc_vec = BPolyVec::from(
-                            res_poly_slice.iter().map(|&b| b.0).collect::<Vec<u64>>(),
+                        let hadamard_result = hadamard_batch(
+                            current_inner_acc_slice,
+                            var_slice,
+                            current_inner_acc_slice.len(),
+                            1,
                         );
+                        inner_acc_vec = BPolyVec::from(hadamard_result);
                     }
                 }
                 MegaTyp::Rnd => {
@@ -160,10 +164,13 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
 
                     for _ in 0..exp {
                         let current_inner_acc_slice = &inner_acc_vec.0;
-                        bp_hadamard(current_inner_acc_slice, com_slice.0, res_poly_slice);
-                        inner_acc_vec = BPolyVec::from(
-                            res_poly_slice.iter().map(|&b| b.0).collect::<Vec<u64>>(),
+                        let hadamard_result = hadamard_batch(
+                            current_inner_acc_slice,
+                            com_slice.0,
+                            current_inner_acc_slice.len(),
+                            1,
                         );
+                        inner_acc_vec = BPolyVec::from(hadamard_result);
                     }
                 }
             }

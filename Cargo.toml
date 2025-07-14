@@ -63,6 +63,7 @@ num-derive = "0.4.2"
 signal-hook = "0.3"
 signal-hook-tokio = "0.3.1"
 static_assertions = "1.1.0"
+cust = "0.7"
 
 ## Sword crypto dependencies
 # ed25519
