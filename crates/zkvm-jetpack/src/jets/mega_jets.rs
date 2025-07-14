@@ -5,6 +5,7 @@ use nockvm::noun::{IndirectAtom, Noun, D};
 
 use crate::form::math::base::bpow;
 use crate::form::math::gpu_poly::hadamard_batch;
+use crate::form::math::gpu_poly::scalar_batch;
 use crate::form::math::bpoly::*;
 use crate::form::mega::{brek, MegaTyp};
 use crate::form::poly::*;
@@ -117,17 +118,12 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
                     };
 
                     let pow_rnd = bpow(rnd.0, exp);
-                    let mut temp_res_vec_belt: Vec<Belt> =
-                        vec![Belt::from(0u64); inner_acc_vec.len()];
-                    let res_poly_slice = temp_res_vec_belt.as_mut_slice();
-
-                    bpscal(Belt(pow_rnd), &inner_acc_vec.0, res_poly_slice);
-                    inner_acc_vec = BPolyVec::from(
-                        temp_res_vec_belt
-                            .into_iter()
-                            .map(|b| b.0)
-                            .collect::<Vec<u64>>(),
-                    );
+                    let scalar = pow_rnd;
+                    let num_polys = 1;
+                    let poly_len = inner_acc_vec.0.len();
+                    let scalars_vec = vec![scalar; num_polys];
+                    let scalar_result = scalar_batch(&inner_acc_vec.0, &scalars_vec, poly_len, num_polys);
+                    inner_acc_vec = BPolyVec::from(scalar_result);
                 }
                 MegaTyp::Dyn => {
                     if idx >= dyns.len() {
@@ -136,17 +132,12 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
                     let dyn_val = dyns.0[idx];
 
                     let pow_dyn = bpow(dyn_val.0, exp);
-                    let mut temp_res_vec_belt: Vec<Belt> =
-                        vec![Belt::from(0u64); inner_acc_vec.len()];
-                    let res_poly_slice = temp_res_vec_belt.as_mut_slice();
-
-                    bpscal(Belt(pow_dyn), &inner_acc_vec.0, res_poly_slice);
-                    inner_acc_vec = BPolyVec::from(
-                        temp_res_vec_belt
-                            .into_iter()
-                            .map(|b| b.0)
-                            .collect::<Vec<u64>>(),
-                    );
+                    let scalar = pow_dyn;
+                    let num_polys = 1;
+                    let poly_len = inner_acc_vec.0.len();
+                    let scalars_vec = vec![scalar; num_polys];
+                    let scalar_result = scalar_batch(&inner_acc_vec.0, &scalars_vec, poly_len, num_polys);
+                    inner_acc_vec = BPolyVec::from(scalar_result);
                 }
                 MegaTyp::Con => {}
                 MegaTyp::Com => {
@@ -176,15 +167,12 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
             }
         }
 
-        let mut scaled_inner_vec_belt: Vec<Belt> = vec![Belt::from(0u64); inner_acc_vec.len()];
-        let scaled_poly_slice = scaled_inner_vec_belt.as_mut_slice();
-        bpscal(v, &inner_acc_vec.0, scaled_poly_slice);
-        let scaled_inner_bpolyvec = BPolyVec::from(
-            scaled_inner_vec_belt
-                .into_iter()
-                .map(|b| b.0)
-                .collect::<Vec<u64>>(),
-        );
+        let scalar = v.0;
+        let num_polys = 1;
+        let poly_len = inner_acc_vec.0.len();
+        let scalars_vec = vec![scalar; num_polys];
+        let scalar_result = scalar_batch(&inner_acc_vec.0, &scalars_vec, poly_len, num_polys);
+        let scaled_inner_bpolyvec = BPolyVec::from(scalar_result);
 
         let new_acc_len = acc_vec.len().max(scaled_inner_bpolyvec.len());
         let mut new_acc_vec_belt: Vec<Belt> = vec![Belt::from(0u64); new_acc_len];

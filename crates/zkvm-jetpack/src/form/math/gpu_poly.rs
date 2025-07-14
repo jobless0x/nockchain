@@ -77,3 +77,74 @@ fn gpu_hadamard_batch(
     out_buf.copy_to(&mut out)?;
     Ok(out)
 }
+/// Performs elementwise scalar multiplication of batches of polynomials, on GPU if available, else on CPU.
+/// Each "polynomial" is a chunk of poly_len in the input slices, and each has a scalar (one per poly).
+pub fn scalar_batch(
+    a: &[u64],
+    scalars: &[u64],
+    poly_len: usize,
+    num_polys: usize,
+) -> Vec<u64> {
+    let mut out = vec![0u64; poly_len * num_polys];
+
+    // Check if we're on a platform with CUDA and the .ptx file is present.
+    if Path::new("cuda/poly_ops.ptx").exists() {
+        match gpu_scalar_batch(a, scalars, poly_len, num_polys) {
+            Ok(result) => return result,
+            Err(e) => {
+                eprintln!("GPU scalar batch failed: {:?}, falling back to CPU.", e);
+            }
+        }
+    } else {
+        eprintln!("CUDA .ptx file not found, using CPU fallback.");
+    }
+
+    // CPU fallback: normal elementwise scalar multiply
+    for poly in 0..num_polys {
+        let ab = poly * poly_len;
+        let scalar = scalars[poly];
+        for i in 0..poly_len {
+            out[ab + i] = a[ab + i] * scalar;
+        }
+    }
+    out
+}
+
+fn gpu_scalar_batch(
+    a: &[u64],
+    scalars: &[u64],
+    poly_len: usize,
+    num_polys: usize,
+) -> cust::error::CudaResult<Vec<u64>> {
+    let _ctx = cust::quick_init()?;
+
+    let ptx = std::fs::read_to_string("cuda/poly_ops.ptx")?;
+    let module = Module::from_ptx(ptx, &[])?;
+    let stream = Stream::new(StreamFlags::DEFAULT, None)?;
+
+    let func = module.get_function("scalar_batch")?;
+
+    let a_buf = DeviceBuffer::from_slice(a)?;
+    let scalars_buf = DeviceBuffer::from_slice(scalars)?;
+    let mut out_buf = DeviceBuffer::from_slice(&vec![0u64; poly_len * num_polys])?;
+
+    let block_size = 128u32;
+    let grid_size = ((num_polys as u32) + block_size - 1) / block_size;
+
+    unsafe {
+        launch!(
+            func<<<grid_size, block_size, 0, stream>>>(
+                a_buf.as_device_ptr(),
+                scalars_buf.as_device_ptr(),
+                out_buf.as_device_ptr(),
+                poly_len as u64,
+                num_polys as u64
+            )
+        )?;
+    }
+
+    stream.synchronize()?;
+    let mut out = vec![0u64; poly_len * num_polys];
+    out_buf.copy_to(&mut out)?;
+    Ok(out)
+}
