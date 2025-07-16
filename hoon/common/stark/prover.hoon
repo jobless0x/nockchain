@@ -108,7 +108,7 @@
   :: generate-proof is the main body of the prover.
   ++  generate-proof
     :: Disabled jet hint for now, under development.
-    :: ~/  %generate-proof
+    ~&  %generate-proof
     |=  $:  version=proof-version
             header=noun-digest:tip5
             nonce=noun-digest:tip5
@@ -218,7 +218,7 @@
     ::  build mega-extension columns
     =/  table-mega-exts=(list table-mary)
       (build-mega-extend tables challenges return)
-    ::~&  %tables-built
+    ~&  %tables-built
     =.  tables
       %+  turn  (zip-up tables table-mega-exts)
       |=  [t=table-dat mega-ext=table-mary]
@@ -227,7 +227,7 @@
       (weld-exts:tlib p.t mega-ext)
     ::
     ::  check that the tables have correct num of ext cols. Comment this out for production.
-    ::~&  >>  %check-mega-ext-cols
+    ~&  >>  %check-mega-ext-cols
     ::?:  %+  levy  (zip-up tables table-mega-exts)
         ::|=  [table=table-dat mext=table-mary]
         ::!=(step.p.mext mega-ext-width.p.table)
@@ -298,7 +298,7 @@
     ::  polys that will give the value of the following row. Then we weld these second-row polys
     ::  to the original polys to get the double trace polys. These can then be used to compose with
     ::  the constraints and evaluate at the DEEP challenge later on.
-    ::~&  %transposing-table
+    ~&  %transposing-table
     ::  TODO: we already transposed the tables when we interpolated the polynomials and we should
     ::  just reuse that. But that requires changing the interface to the interpolation functions.
     =/  marys=(list table-mary)
@@ -309,7 +309,7 @@
       |=  =table-mary
       (transpose-bpolys p.table-mary)
     ::
-    ::~&  %composing-trace-polys
+    ~&  %composing-trace-polys
     ::  each mary is a list of a table's columns, interpolated to polys
     =/  trace-polys
       %+  turn  (zip-up polys.base (zip-up polys.ext polys.mega-ext))
@@ -326,7 +326,7 @@
       =/  bp=bpoly  (~(snag-as-bpoly ave polys) i)
       (bp-ifft (bp-shift-by-unity bp 1))
     ::
-    ::~&  %appending-first-and-second-row-trace-polys
+    ~&  %appending-first-and-second-row-trace-polys
     ::
     =/  tworow-trace-polys=(list mary)
       %^    zip
@@ -510,7 +510,7 @@
         [deep-candidate rng]
       =^  felt  rng  $:felt:rng
       $(deep-candidate felt)
-    ::~&  %evaluating-trace-at-deep-challenge
+    ~&  %evaluating-trace-at-deep-challenge
     ::
     ::  trace-evaluations: list of evaluations of interpolated column polys and
     ::  shifted column polys at deep point, grouped in order by tables
@@ -562,7 +562,7 @@
       ==
     ::
     ::  create DEEP codeword and push to proof
-    ::~&  %computing-deep-codeword
+    ~&  %computing-deep-codeword
     =/  deep-codeword=fpoly
       (coseword deep-poly (lift g) fri-domain-len)
     ::
@@ -613,7 +613,7 @@
       %-  ~(push proof-stream proof)
       m-pathbf+[(tail elem) path.opening]
     ::
-    ::~&  %finished-proof
+    ~&  %finished-proof
     ?-  version
       %0  [%& %0 objects.proof ~ 0]
       %1  [%& %1 objects.proof ~ 0]

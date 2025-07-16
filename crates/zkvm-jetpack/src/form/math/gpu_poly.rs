@@ -1,5 +1,6 @@
 use std::path::Path;
 use cust::prelude::*;
+use std::time::Instant;
 
 /// Performs elementwise Hadamard (multiply) of batches of polynomials, on GPU if available, else on CPU.
 /// Each "polynomial" is a chunk of poly_len in the input slices.
@@ -14,13 +15,19 @@ pub fn hadamard_batch(
 
     // Check if we're on a platform with CUDA and the .ptx file is present.
     if Path::new("cuda/poly_ops.ptx").exists() {
-        // Try GPU, fallback to CPU on error
-        match gpu_hadamard_batch(a, b, poly_len, num_polys) {
-            Ok(result) => return result,
-            Err(e) => {
-                eprintln!("GPU batch failed: {:?}, falling back to CPU.", e);
+        let iterations = std::env::var("GPU_LOOP").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+        let mut final_result = vec![0u64; poly_len * num_polys];
+
+        for _ in 0..iterations {
+            match gpu_hadamard_batch(a, b, poly_len, num_polys) {
+                Ok(result) => final_result = result,
+                Err(e) => {
+                    eprintln!("GPU batch failed: {:?}, falling back to CPU.", e);
+                    break;
+                }
             }
         }
+        return final_result;
     } else {
         eprintln!("CUDA .ptx file not found, using CPU fallback.");
     }
@@ -41,11 +48,16 @@ fn gpu_hadamard_batch(
     poly_len: usize,
     num_polys: usize,
 ) -> cust::error::CudaResult<Vec<u64>> {
+    let start = std::time::Instant::now();
+
     // 1. Setup CUDA context
     let _ctx = cust::quick_init()?;
 
     // 2. Load PTX module and kernel
-    let ptx = std::fs::read_to_string("cuda/poly_ops.ptx")?;
+    let ptx = match std::fs::read_to_string("cuda/poly_ops.ptx") {
+        Ok(ptx) => ptx,
+        Err(_e) => return Err(cust::error::CudaError::InvalidValue),
+    };
     let module = Module::from_ptx(ptx, &[])?;
     let stream = Stream::new(StreamFlags::DEFAULT, None)?;
 
@@ -56,9 +68,11 @@ fn gpu_hadamard_batch(
     let b_buf = DeviceBuffer::from_slice(b)?;
     let mut out_buf = DeviceBuffer::from_slice(&vec![0u64; poly_len * num_polys])?;
 
-    // 4. Launch kernel
-    let block_size = 128u32;
-    let grid_size = ((num_polys as u32) + block_size - 1) / block_size;
+    // 4. Launch kernel (elementwise parallelism)
+    let total_elems = (poly_len * num_polys) as u32;
+    println!("📊 hadamard_batch: poly_len = {}, num_polys = {}, total_elems = {}", poly_len, num_polys, total_elems);
+    let block_size = 1024u32;
+    let grid_size = (total_elems + block_size - 1) / block_size;
 
     unsafe {
         launch!(
@@ -66,8 +80,7 @@ fn gpu_hadamard_batch(
                 a_buf.as_device_ptr(),
                 b_buf.as_device_ptr(),
                 out_buf.as_device_ptr(),
-                poly_len as u64,
-                num_polys as u64
+                (poly_len * num_polys) as u64
             )
         )?;
     }
@@ -75,6 +88,7 @@ fn gpu_hadamard_batch(
     stream.synchronize()?;
     let mut out = vec![0u64; poly_len * num_polys];
     out_buf.copy_to(&mut out)?;
+    println!("⏱️ GPU hadamard_batch completed in {:?}", start.elapsed());
     Ok(out)
 }
 /// Performs elementwise scalar multiplication of batches of polynomials, on GPU if available, else on CPU.
@@ -89,12 +103,19 @@ pub fn scalar_batch(
 
     // Check if we're on a platform with CUDA and the .ptx file is present.
     if Path::new("cuda/poly_ops.ptx").exists() {
-        match gpu_scalar_batch(a, scalars, poly_len, num_polys) {
-            Ok(result) => return result,
-            Err(e) => {
-                eprintln!("GPU scalar batch failed: {:?}, falling back to CPU.", e);
+        let iterations = std::env::var("GPU_LOOP").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+        let mut final_result = vec![0u64; poly_len * num_polys];
+
+        for _ in 0..iterations {
+            match gpu_scalar_batch(a, scalars, poly_len, num_polys) {
+                Ok(result) => final_result = result,
+                Err(e) => {
+                    eprintln!("GPU scalar batch failed: {:?}, falling back to CPU.", e);
+                    break;
+                }
             }
         }
+        return final_result;
     } else {
         eprintln!("CUDA .ptx file not found, using CPU fallback.");
     }
@@ -116,9 +137,14 @@ fn gpu_scalar_batch(
     poly_len: usize,
     num_polys: usize,
 ) -> cust::error::CudaResult<Vec<u64>> {
+    let start = std::time::Instant::now();
+
     let _ctx = cust::quick_init()?;
 
-    let ptx = std::fs::read_to_string("cuda/poly_ops.ptx")?;
+    let ptx = match std::fs::read_to_string("cuda/poly_ops.ptx") {
+        Ok(ptx) => ptx,
+        Err(_e) => return Err(cust::error::CudaError::InvalidValue),
+    };
     let module = Module::from_ptx(ptx, &[])?;
     let stream = Stream::new(StreamFlags::DEFAULT, None)?;
 
@@ -128,8 +154,10 @@ fn gpu_scalar_batch(
     let scalars_buf = DeviceBuffer::from_slice(scalars)?;
     let mut out_buf = DeviceBuffer::from_slice(&vec![0u64; poly_len * num_polys])?;
 
-    let block_size = 128u32;
-    let grid_size = ((num_polys as u32) + block_size - 1) / block_size;
+    let total_elems = (poly_len * num_polys) as u32;
+    println!("📊 scalar_batch: poly_len = {}, num_polys = {}, total_elems = {}", poly_len, num_polys, total_elems);
+    let block_size = 1024u32;
+    let grid_size = (total_elems + block_size - 1) / block_size;
 
     unsafe {
         launch!(
@@ -137,8 +165,8 @@ fn gpu_scalar_batch(
                 a_buf.as_device_ptr(),
                 scalars_buf.as_device_ptr(),
                 out_buf.as_device_ptr(),
-                poly_len as u64,
-                num_polys as u64
+                (poly_len * num_polys) as u64,
+                poly_len as u64
             )
         )?;
     }
@@ -146,5 +174,6 @@ fn gpu_scalar_batch(
     stream.synchronize()?;
     let mut out = vec![0u64; poly_len * num_polys];
     out_buf.copy_to(&mut out)?;
+    println!("⏱️ GPU scalar_batch completed in {:?}", start.elapsed());
     Ok(out)
 }

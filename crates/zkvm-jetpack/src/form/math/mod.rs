@@ -6,5 +6,6 @@ pub mod gen_trace;
 pub mod mary;
 pub mod prover;
 pub mod tip5;
+pub mod gpu_poly;
 
 pub use base::*;

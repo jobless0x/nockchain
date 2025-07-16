@@ -19,6 +19,7 @@ nockvm.workspace = true
 nockvm_macros.workspace = true
 tracing.workspace = true
 bitvec.workspace = true
+cust = { version = "0.3.2" }
 
 [dev-dependencies]
 quickcheck.workspace = true
