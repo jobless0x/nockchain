@@ -31,7 +31,7 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
             return jet_err::<()>();
         }}
     }
-    tracing::info!("🚀 mega_jet STARTED");
+    println!("🚀 mega_jet STARTED");
 
     let sam = slot(subject, 6)?;
     let stack = &mut context.stack;
@@ -71,7 +71,7 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
         }
     };
 
-    tracing::info!("🛠 Initializing acc_vec for p_iter loop");
+    println!("🛠 Initializing acc_vec for p_iter loop");
     let mut acc_vec = zero_bpoly();
 
     let mut p_iter = HoonMapIter::from(p_noun);
@@ -99,7 +99,7 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
 
             match typ {
                 MegaTyp::Var => {
-                    tracing::info!("🧬 Entered MegaTyp::Var idx = {}, exp = {}", idx, exp);
+                    println!("🧬 Entered MegaTyp::Var idx = {}, exp = {}", idx, exp);
                     let var_start_idx = idx * poly_len_for_var_com;
                     let var_end_idx = var_start_idx + poly_len_for_var_com;
 
@@ -136,7 +136,7 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
                     }
                 }
                 MegaTyp::Rnd => {
-                    tracing::info!("🎲 Entered MegaTyp::Rnd idx = {}, exp = {}", idx, exp);
+                    println!("🎲 Entered MegaTyp::Rnd idx = {}, exp = {}", idx, exp);
                     let rnd_noun = chal_map_opt
                         .as_ref()
                         .and_then(|m| m.get(stack, D(idx as u64)))
@@ -167,22 +167,22 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
                     }
                     println!("📏 scalar_batch poly_len = {}, num_polys (BATCH_SIZE) = {}", poly_len, num_polys);
                     println!("🚀 scalar_batch: {} × {}", batched_acc.len(), batched_scalars.len());
-                    tracing::debug!("🔥 Starting GPU scalar_batch...");
+                    println!("🔥 Starting GPU scalar_batch...");
                     let scalar_result = scalar_batch(&batched_acc, &batched_scalars, poly_len, num_polys);
-                    tracing::info!("✅ scalar_batch returned with {} elements", scalar_result.len());
-                    tracing::debug!("✅ GPU scalar_batch completed, consuming result...");
+                    println!("✅ scalar_batch returned with {} elements", scalar_result.len());
+                    println!("✅ GPU scalar_batch completed, consuming result...");
                     let mut temp_res_vec_belt: Vec<Belt> = scalar_result.iter().map(|&x| Belt::from(x)).collect();
                     let _res_poly_slice = temp_res_vec_belt.as_mut_slice();
-                    tracing::debug!("🧠 Output slice length = {}", _res_poly_slice.len());
+                    println!("🧠 Output slice length = {}", _res_poly_slice.len());
                     if !_res_poly_slice.is_empty() {
-                        tracing::debug!("⚙️ Simulating jet use of scalar output: first u64 = {:?}", _res_poly_slice[0]);
+                        println!("✅ Jet result used: first u64 = {:?}", _res_poly_slice[0]);
                     } else {
-                        tracing::warn!("⚠️ GPU output slice was empty");
+                        println!("❌ GPU output slice was empty — skipping jet result usage!");
                     }
                     inner_acc_vec = BPolyVec::from(scalar_result);
                 }
                 MegaTyp::Dyn => {
-                    tracing::info!("⚡ Entered MegaTyp::Dyn idx = {}, exp = {}", idx, exp);
+                    println!("⚡ Entered MegaTyp::Dyn idx = {}, exp = {}", idx, exp);
                     if idx >= dyns.len() {
                         fail_with_log!("Dyn index out of bounds");
                     }
@@ -210,17 +210,17 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
                     }
                     println!("📏 scalar_batch poly_len = {}, num_polys (BATCH_SIZE) = {}", poly_len, num_polys);
                     println!("🚀 scalar_batch: {} × {}", batched_acc.len(), batched_scalars.len());
-                    tracing::debug!("🔥 Starting GPU scalar_batch...");
+                    println!("🔥 Starting GPU scalar_batch...");
                     let scalar_result = scalar_batch(&batched_acc, &batched_scalars, poly_len, num_polys);
-                    tracing::info!("✅ scalar_batch returned with {} elements", scalar_result.len());
-                    tracing::debug!("✅ GPU scalar_batch completed, consuming result...");
+                    println!("✅ scalar_batch returned with {} elements", scalar_result.len());
+                    println!("✅ GPU scalar_batch completed, consuming result...");
                     let mut temp_res_vec_belt: Vec<Belt> = scalar_result.iter().map(|&x| Belt::from(x)).collect();
                     let _res_poly_slice = temp_res_vec_belt.as_mut_slice();
-                    tracing::debug!("🧠 Output slice length = {}", _res_poly_slice.len());
+                    println!("🧠 Output slice length = {}", _res_poly_slice.len());
                     if !_res_poly_slice.is_empty() {
-                        tracing::debug!("⚙️ Simulating jet use of scalar output: first u64 = {:?}", _res_poly_slice[0]);
+                        println!("✅ Jet result used: first u64 = {:?}", _res_poly_slice[0]);
                     } else {
-                        tracing::warn!("⚠️ GPU output slice was empty");
+                        println!("❌ GPU output slice was empty — skipping jet result usage!");
                     }
                     inner_acc_vec = BPolyVec::from(scalar_result);
                 }
@@ -228,7 +228,7 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
                     println!("📦 MegaTyp::Con (no-op)");
                 }
                 MegaTyp::Com => {
-                    tracing::info!("🔗 Entered MegaTyp::Com idx = {}, exp = {}", idx, exp);
+                    println!("🔗 Entered MegaTyp::Com idx = {}, exp = {}", idx, exp);
                     let com_noun = com_map_opt
                         .as_ref()
                         .and_then(|m| m.get(stack, D(idx as u64)))
@@ -289,7 +289,7 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
         println!("🚀 scalar_batch: {} × {}", batched_acc.len(), batched_scalars.len());
         println!("✅ Launching scalar_batch with poly_len: {}, BATCH_SIZE: {}", poly_len, num_polys);
         let scalar_result = scalar_batch(&batched_acc, &batched_scalars, poly_len, num_polys);
-        tracing::info!("✅ scalar_batch returned with {} elements", scalar_result.len());
+        println!("✅ scalar_batch returned with {} elements", scalar_result.len());
         println!("✅ scalar_batch completed, updating acc_vec...");
         let scaled_inner_bpolyvec = BPolyVec::from(scalar_result);
         println!("✅ acc_vec updated, continuing main loop...");
@@ -297,7 +297,7 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
         let new_acc_len = acc_vec.len().max(scaled_inner_bpolyvec.len());
         let mut new_acc_vec_belt: Vec<Belt> = vec![Belt::from(0u64); new_acc_len];
         let new_acc_poly_slice = new_acc_vec_belt.as_mut_slice();
-        tracing::info!("➕ Accumulating new result into acc_vec");
+        println!("➕ Accumulating new result into acc_vec");
         bpadd(&acc_vec.0, &scaled_inner_bpolyvec.0, new_acc_poly_slice);
         acc_vec = BPolyVec::from(
             new_acc_vec_belt
@@ -309,7 +309,7 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
         Ok(())
     })?;
     println!("🎉 End of p_iter loop, acc_vec.len = {}", acc_vec.len());
-    tracing::info!("✅ Finished MegaJet GPU proof batch");
+    println!("✅ Finished MegaJet GPU proof batch");
     println!("🧠 allocating handle for acc_vec len = {}", acc_vec.len());
     let (_final_res_atom, final_res_poly_slice): (IndirectAtom, &mut [Belt]) =
         new_handle_mut_slice(stack, Some(acc_vec.len()));
@@ -317,7 +317,7 @@ pub fn mp_substitute_mega_jet(context: &mut Context, subject: Noun) -> Result {
     final_res_poly_slice.copy_from_slice(&acc_vec.0);
 
     let res_cell = finalize_poly(stack, Some(final_res_poly_slice.len()), _final_res_atom);
-    tracing::info!("🏁 mega_jet FINISHED successfully. Returning result.");
+    println!("🏁 mega_jet FINISHED successfully. Returning result.");
 
     Ok(res_cell)
 }
